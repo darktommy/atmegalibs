@@ -1,4 +1,0 @@
-atmegalibs
-==========
-
-atmega libs
