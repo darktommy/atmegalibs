@@ -1,24 +1,24 @@
 /*
     Copyright (c) 2007 Stefan Engelke <mbox@stefanengelke.de>
 
-    Permission is hereby granted, free of charge, to any person 
-    obtaining a copy of this software and associated documentation 
-    files (the "Software"), to deal in the Software without 
-    restriction, including without limitation the rights to use, copy, 
-    modify, merge, publish, distribute, sublicense, and/or sell copies 
-    of the Software, and to permit persons to whom the Software is 
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without
+    restriction, including without limitation the rights to use, copy,
+    modify, merge, publish, distribute, sublicense, and/or sell copies
+    of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be 
+    The above copyright notice and this permission notice shall be
     included in all copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT 
-    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
     DEALINGS IN THE SOFTWARE.
 
     $Id$
@@ -38,7 +38,7 @@
 // Flag which denotes transmitting mode
 volatile uint8_t PTX;
 
-void mirf_init() 
+void mirf_init()
 // Initializes pins ans interrupt to communicate with the MiRF module
 // Should be called in the early initializing phase at startup.
 {
@@ -53,35 +53,35 @@ void mirf_init()
     GICR  = ((0<<INT1)|(1<<INT0));                         // Activate INT0
 #endif // __AVR_ATmega8__
 
-#if defined(__AVR_ATmega168__)
+#if defined(__AVR_ATmega16__)
     // Initialize external interrupt on port PD6 (PCINT22)
     DDRB &= ~(1<<PD6);
-    PCMSK2 = (1<<PCINT22);
-    PCICR  = (1<<PCIE2);
-#endif // __AVR_ATmega168__    
+    MCUCR = ((1<<ISC11)|(0<<ISC10)|(1<<ISC01)|(0<<ISC00)); // Set external interupt on falling edge
+    GICR  = ((0<<INT1)|(1<<INT0));                         // Activate INT0
+#endif // __AVR_ATmega168__
 
     // Initialize spi module
     spi_init();
 }
 
 
-void mirf_config() 
+void mirf_config()
 // Sets the important registers in the MiRF module and powers the module
 // in receiving mode
 {
     // Set RF channel
     mirf_config_register(RF_CH,mirf_CH);
 
-    // Set length of incoming payload 
+    // Set length of incoming payload
     mirf_config_register(RX_PW_P0, mirf_PAYLOAD);
 
-    // Start receiver 
+    // Start receiver
     PTX = 0;        // Start in receiving mode
     RX_POWERUP;     // Power up in receiving mode
     mirf_CE_hi;     // Listening for pakets
 }
 
-void mirf_set_RADDR(uint8_t * adr) 
+void mirf_set_RADDR(uint8_t * adr)
 // Sets the receiving address
 {
     mirf_CE_lo;
@@ -96,18 +96,18 @@ void mirf_set_TADDR(uint8_t * adr)
 }
 
 #if defined(__AVR_ATmega8__)
-SIGNAL(SIG_INTERRUPT0) 
+ISR(INT0_vect)
 #endif // __AVR_ATmega8__
-#if defined(__AVR_ATmega168__)
-SIGNAL(SIG_PIN_CHANGE2) 
-#endif // __AVR_ATmega168__  
-// Interrupt handler 
+#if defined(__AVR_ATmega16__)
+ISR(INT0_vect)
+#endif // __AVR_ATmega168__
+// Interrupt handler
 {
-    uint8_t status;   
+    uint8_t status;
     // If still in transmitting mode then finish transmission
     if (PTX) {
-    
-        // Read MiRF status 
+
+        // Read MiRF status
         mirf_CSN_lo;                                // Pull down chip select
         status = spi_fast_shift(NOP);               // Read status register
         mirf_CSN_hi;                                // Pull up chip select
@@ -122,19 +122,19 @@ SIGNAL(SIG_PIN_CHANGE2)
     }
 }
 
-extern uint8_t mirf_data_ready() 
+extern uint8_t mirf_data_ready()
 // Checks if data is available for reading
 {
     if (PTX) return 0;
     uint8_t status;
-    // Read MiRF status 
+    // Read MiRF status
     mirf_CSN_lo;                                // Pull down chip select
     status = spi_fast_shift(NOP);               // Read status register
     mirf_CSN_hi;                                // Pull up chip select
     return status & (1<<RX_DR);
 }
 
-extern void mirf_get_data(uint8_t * data) 
+extern void mirf_get_data(uint8_t * data)
 // Reads mirf_PAYLOAD bytes into data array
 {
     mirf_CSN_lo;                               // Pull down chip select
@@ -162,7 +162,7 @@ void mirf_read_register(uint8_t reg, uint8_t * value, uint8_t len)
     mirf_CSN_hi;
 }
 
-void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len) 
+void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len)
 // Writes an array of bytes into inte the MiRF registers.
 {
     mirf_CSN_lo;
@@ -172,7 +172,7 @@ void mirf_write_register(uint8_t reg, uint8_t * value, uint8_t len)
 }
 
 
-void mirf_send(uint8_t * value, uint8_t len) 
+void mirf_send(uint8_t * value, uint8_t len)
 // Sends a data package to the default address. Be sure to send the correct
 // amount of bytes as configured as payload on the receiver.
 {
@@ -182,15 +182,15 @@ void mirf_send(uint8_t * value, uint8_t len)
 
     PTX = 1;                        // Set to transmitter mode
     TX_POWERUP;                     // Power up
-    
+
     mirf_CSN_lo;                    // Pull down chip select
     spi_fast_shift( FLUSH_TX );     // Write cmd to flush tx fifo
     mirf_CSN_hi;                    // Pull up chip select
-    
+
     mirf_CSN_lo;                    // Pull down chip select
     spi_fast_shift( W_TX_PAYLOAD ); // Write cmd to write payload
     spi_transmit_sync(value,len);   // Write payload
     mirf_CSN_hi;                    // Pull up chip select
-    
+
     mirf_CE_hi;                     // Start transmission
 }
