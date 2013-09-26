@@ -14,18 +14,27 @@
 #include <ctype.h>
 #include <stdio.h>
 
-#define SPEED4800 103
-#define SPEED9600 51
-#define SPEED19200 25
-#define SPEED38400 12
-#define SPEED250000 1
+
+#define SPEED4800 (F_CPU/16/4800-1)
+#define SPEED9600 (F_CPU/16/9600-1)
+#define SPEED19200 (F_CPU/16/19200-1)
+#define SPEED38400 (F_CPU/16/38400-1)
+#define SPEED250000 (F_CPU/16/250000-1)
+
 
 #define BUFFER_LEN 64
 
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
 #define WAIT_FOR_WRITE while (!(UCSRA & (1 << UDRE))) {}
 #define WAIT_FOR_READ while (!(UCSRA & (1 << RXC))) {}
-//#define serialReadBytes(buf,n) while(serialAvailable() < n) ; memcpy(buf,_buffer,n); shift(n);
-//#define serialWaitUntil(terminator) while(serialLast() != terminator) {}
+#endif
+
+//TODO:
+#if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
+#define WAIT_FOR_WRITE while (!(UCSR0A & (1 << UDRE0))) {}
+#define WAIT_FOR_READ while (!(UCSR0A & (1 << RXC0))) {}
+#endif
+
 volatile uint8_t _serial_initialized;
 
 
@@ -34,7 +43,7 @@ volatile uint8_t _buffer_length;
 volatile uint8_t lastChar;
 
 //initialization
-void serialInit(uint8_t SPEED); // default 8N1
+void serialInit(uint8_t ubrr); // default 8N1
 void serialEnd();
 
 uint8_t serialAvailable();

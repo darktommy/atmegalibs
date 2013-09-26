@@ -35,16 +35,25 @@ void push(byte b)
 }
 
 
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
 // прерывание по приёму байта
 ISR(USART_RXC_vect)
 {
-    PORTD = PORTD | (1 << PD3);
     byte c = UDR;
     lastChar = c;
     push(c);
-
-    PORTD &= ~(1 << PD3);
 }
+#endif
+
+#if defined(__AVR_ATmega88P__)
+// прерывание по приёму байта
+ISR(USART_RX_vect)
+{
+    byte c = UDR0;
+    lastChar = c;
+    push(c);
+}
+#endif
 
 uint8_t serialAvailable()
 {
@@ -54,10 +63,22 @@ uint8_t serialAvailable()
 void serialInit(uint8_t SPEED)
 {
     _buffer_length = 0;
-    UBRRL = SPEED;
+
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
+    UBRRH = (unsigned char)SPEED << 8;
+    UBRRL = (unsigned char)SPEED;
     UCSRA = (0 << U2X);
 	UCSRB = (0 << UDRIE) | (0 << TXCIE) | (1 << RXCIE) | (1 << RXEN) | (1 << TXEN);
     UCSRC = (1 << URSEL) | (0 << UMSEL) | (0 << USBS) | (3 << UCSZ0); //8n1
+#endif
+
+#if defined(__AVR_ATmega88P__)
+    UBRR0H = (unsigned char)SPEED << 8;
+    UBRR0L = (unsigned char)SPEED;
+    UCSR0A = (0 << U2X0);
+	UCSR0B = (0 << UDRIE0) | (0 << TXCIE0) | (1 << RXCIE0) | (1 << RXEN0) | (1 << TXEN0);
+    UCSR0C = (3 << UCSZ00); //8n1
+#endif
 
     _serial_initialized = TRUE;
 }
@@ -65,7 +86,14 @@ void serialInit(uint8_t SPEED)
 
 void serialEnd()
 {
+#if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
     UCSRB = (0 << UDRIE) | (0 << TXCIE) | (0 << RXCIE) | (0 << RXEN) | (0 << TXEN);
+#endif
+
+#if defined(__AVR_ATmega88P__)
+    UCSR0B = (0 << UDRIE0) | (0 << TXCIE0) | (0 << RXCIE0) | (0 << RXEN0) | (0 << TXEN0);
+#endif
+
     _serial_initialized = FALSE;
 }
 
@@ -75,7 +103,13 @@ void serialWriteChar(byte ch)
     if(_serial_initialized)
     {
         WAIT_FOR_WRITE;
+        #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
         UDR = ch;
+        #endif
+
+        #if defined(__AVR_ATmega88P__)
+        UDR0 = ch;
+        #endif
     }
 }
 
@@ -86,7 +120,12 @@ void serialWrite(byte* buf)
         while(*buf)
         {
             WAIT_FOR_WRITE;
+            #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
             UDR = *buf;
+            #endif
+            #if defined(__AVR_ATmega88P__)
+            UDR0 = *buf;
+            #endif
             buf++;
         }
     }
@@ -100,7 +139,13 @@ void serialWriteF(const unsigned char* buf)
         for(;(c = pgm_read_byte(buf)) != 0;buf++)
         {
             WAIT_FOR_WRITE;
+            #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
             UDR = c;
+            #endif
+            #if defined(__AVR_ATmega88P__)
+            UDR0 = c;
+            #endif
+            buf++;
         }
     }
 }
@@ -109,7 +154,6 @@ void serialWriteF(const unsigned char* buf)
 byte serialLast()
 {
     if( ! _buffer_length) return -1;
-    //byte c = _buffer[_buffer_length-1];
     byte c = lastChar;
     return c;
 }
@@ -126,19 +170,13 @@ byte serialReadChar()
 
 byte serialRead(byte* buf, uint8_t n)
 {
-    uint8_t counter = 0;
-    uint8_t flag = 0;
-    while(counter < 250)
+    while(1)
     {
         if(serialAvailable() >= n)
         {
-            flag = 1;
             break;
         }
-        counter++;
-        _delay_ms(4);
     }
-    if(!flag) return 0;
 
     memcpy(buf,_buffer,n);
     shift(n);
@@ -158,17 +196,10 @@ uint8_t serialReadUntil(byte* buf, uint8_t maxlen, byte terminator)
             return i+1;
         }
     }
-/*
+
     while(serialLast() != terminator)
         ;
-    //в идеале так, но приходится делать как ниже..
- */
-    while(1)
-    {
-        if(serialLast() == terminator)
-            break;
-        _delay_ms(1); //какойто глюк с gcc, надо вызывать задержку, иначе гуано
-    }
+
     uint8_t length = serialAvailable();
     if(length > maxlen)
         length = maxlen;
@@ -189,7 +220,6 @@ uint8_t serialWaitUntil(byte terminator)
     {
         if(serialLast() == terminator)
             return serialAvailable();
-        _delay_ms(1); //какойто глюк с gcc, надо вызывать задержку, иначе гуано
     }
     return 0;
 }
