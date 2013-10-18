@@ -52,6 +52,8 @@ void serialWrite(byte* buf);
 void serialWriteF(const unsigned char* buf); //for strings in flash rom
 void serialPrintInt(uint16_t value);
 void serialPrintIntLn(uint16_t value);
+void serialPrintDouble(double value);
+void serialPrintDoubleLn(double value);
 
 byte serialLast() __attribute__ ((noinline));
 byte serialReadChar();

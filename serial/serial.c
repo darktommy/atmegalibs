@@ -293,3 +293,15 @@ void serialPrintIntLn(uint16_t value)
     sprintf(buf,"%i\n",value);
     serialWrite(buf);
 }
+void serialPrintDouble(double value)
+{
+    char buf[20];
+    dtostrf(value,2,2,buf);
+    serialWrite(buf);
+}
+
+void serialPrintDoubleLn(double value)
+{
+    serialPrintFloat(value);
+    serialWrite("\n");
+}
