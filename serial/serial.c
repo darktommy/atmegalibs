@@ -19,7 +19,7 @@ void shift(uint8_t k)
 
 }
 
-void push(byte b)
+void push(char b)
 {
     if(_buffer_length < BUFFER_LEN)
     {
@@ -39,17 +39,17 @@ void push(byte b)
 // прерывание по приёму байта
 ISR(USART_RXC_vect)
 {
-    byte c = UDR;
+    char c = UDR;
     lastChar = c;
     push(c);
 }
 #endif
 
-#if defined(__AVR_ATmega88P__)
+#if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
 // прерывание по приёму байта
 ISR(USART_RX_vect)
 {
-    byte c = UDR0;
+    char c = UDR0;
     lastChar = c;
     push(c);
 }
@@ -72,7 +72,7 @@ void serialInit(uint8_t SPEED)
     UCSRC = (1 << URSEL) | (0 << UMSEL) | (0 << USBS) | (3 << UCSZ0); //8n1
 #endif
 
-#if defined(__AVR_ATmega88P__)
+#if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
     UBRR0H = (unsigned char)SPEED << 8;
     UBRR0L = (unsigned char)SPEED;
     UCSR0A = (0 << U2X0);
@@ -90,7 +90,7 @@ void serialEnd()
     UCSRB = (0 << UDRIE) | (0 << TXCIE) | (0 << RXCIE) | (0 << RXEN) | (0 << TXEN);
 #endif
 
-#if defined(__AVR_ATmega88P__)
+#if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
     UCSR0B = (0 << UDRIE0) | (0 << TXCIE0) | (0 << RXCIE0) | (0 << RXEN0) | (0 << TXEN0);
 #endif
 
@@ -98,7 +98,7 @@ void serialEnd()
 }
 
 
-void serialWriteChar(byte ch)
+void serialWriteChar(char ch)
 {
     if(_serial_initialized)
     {
@@ -107,13 +107,13 @@ void serialWriteChar(byte ch)
         UDR = ch;
         #endif
 
-        #if defined(__AVR_ATmega88P__)
+        #if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
         UDR0 = ch;
         #endif
     }
 }
 
-void serialWrite(byte* buf)
+void serialWrite(char* buf)
 {
     if(_serial_initialized)
     {
@@ -123,7 +123,7 @@ void serialWrite(byte* buf)
             #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
             UDR = *buf;
             #endif
-            #if defined(__AVR_ATmega88P__)
+            #if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
             UDR0 = *buf;
             #endif
             buf++;
@@ -131,51 +131,45 @@ void serialWrite(byte* buf)
     }
 }
 
-void serialWriteF(const unsigned char* buf)
+void serialWriteF(const unsigned char* dataPtr)
 {
-    byte c;
-    if(_serial_initialized)
+    while(pgm_read_byte(dataPtr) != 0x00)
     {
-        for(;(c = pgm_read_byte(buf)) != 0;buf++)
-        {
-            WAIT_FOR_WRITE;
-            #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
-            UDR = c;
-            #endif
-            #if defined(__AVR_ATmega88P__)
-            UDR0 = c;
-            #endif
-            buf++;
-        }
+        char c = pgm_read_byte(dataPtr++);
+        WAIT_FOR_WRITE;
+        #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
+        UDR = c;
+        #endif
+        #if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
+        UDR0 = c;
+        #endif
     }
 }
 
 
-byte serialLast()
+char serialLast()
 {
     if( ! _buffer_length) return -1;
-    byte c = lastChar;
+    char c = lastChar;
     return c;
 }
 
 
-byte serialReadChar()
+char serialReadChar()
 {
     if(! _buffer_length) return -1;
 
-    byte c = _buffer[0];
+    char c = _buffer[0];
     shift(1);
     return c;
 }
 
-byte serialRead(byte* buf, uint8_t n)
+char serialRead(char* buf, uint8_t n)
 {
     while(1)
     {
         if(serialAvailable() >= n)
-        {
             break;
-        }
     }
 
     memcpy(buf,_buffer,n);
@@ -184,7 +178,7 @@ byte serialRead(byte* buf, uint8_t n)
 }
 
 
-uint8_t serialReadUntil(byte* buf, uint8_t maxlen, byte terminator)
+uint8_t serialReadUntil(char* buf, uint8_t maxlen, char terminator)
 {
     uint8_t i;
     for(i=0;i<_buffer_length;i++)
@@ -214,7 +208,7 @@ void serialClearBuffer()
     _buffer_length = 0;
 }
 
-uint8_t serialWaitUntil(byte terminator)
+uint8_t serialWaitUntil(char terminator)
 {
     while(1)
     {
@@ -224,11 +218,32 @@ uint8_t serialWaitUntil(byte terminator)
     return 0;
 }
 
+uint8_t serialSearchChr(char ch)
+{
+    if(_buffer_length)
+    {
+        return (strchr(_buffer, ch) != 0);
+    }
+    return 0;
+}
+
+uint8_t serialReadAll(char * buf)
+{
+    uint8_t len = serialAvailable();
+    serialRead(buf, len);
+    return len;
+}
+
+char* serialGetBuffer()
+{
+    return _buffer;
+}
+
 long serialParseInt()
 {
     uint8_t found = 0;
-    byte* bufptr = _buffer;
-    byte* endptr = 0;
+    char* bufptr = _buffer;
+    char* endptr = 0;
     while(bufptr - _buffer < _buffer_length)
     {
         if( (*bufptr == '-') || (isdigit(*bufptr)))
@@ -255,8 +270,8 @@ long serialParseInt()
  float serialParseFloat()
 {
     uint8_t found = 0;
-    byte* bufptr = _buffer;
-    byte* endptr = 0;
+    char* bufptr = _buffer;
+    char* endptr = 0;
     while(bufptr - _buffer < _buffer_length)
     {
         if( (*bufptr == '-') || (isdigit(*bufptr)))
@@ -302,6 +317,6 @@ void serialPrintDouble(double value)
 
 void serialPrintDoubleLn(double value)
 {
-    serialPrintFloat(value);
+    serialPrintDouble(value);
     serialWrite("\n");
 }

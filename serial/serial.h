@@ -1,7 +1,6 @@
 #ifndef SERIAL_H_INCLUDED
 #define SERIAL_H_INCLUDED
 
-#define byte char
 #define TRUE 1
 #define FALSE 0
 
@@ -38,7 +37,7 @@
 volatile uint8_t _serial_initialized;
 
 
-byte _buffer[BUFFER_LEN];
+char _buffer[BUFFER_LEN];
 volatile uint8_t _buffer_length;
 volatile uint8_t lastChar;
 
@@ -47,19 +46,22 @@ void serialInit(uint8_t ubrr); // default 8N1
 void serialEnd();
 
 uint8_t serialAvailable();
-void serialWriteChar(byte ch);
-void serialWrite(byte* buf);
+void serialWriteChar(char ch);
+void serialWrite(char* buf);
 void serialWriteF(const unsigned char* buf); //for strings in flash rom
 void serialPrintInt(uint16_t value);
 void serialPrintIntLn(uint16_t value);
 void serialPrintDouble(double value);
 void serialPrintDoubleLn(double value);
 
-byte serialLast() __attribute__ ((noinline));
-byte serialReadChar();
-byte serialRead(byte* buf,uint8_t n);
-uint8_t serialReadUntil(byte* buf, uint8_t maxlen, byte terminator);
-uint8_t serialWaitUntil(byte terminator);
+char serialLast() __attribute__ ((noinline));
+char serialReadChar();
+char serialRead(char* buf,uint8_t n);
+uint8_t serialReadUntil(char* buf, uint8_t maxlen, char terminator);
+uint8_t serialWaitUntil(char terminator);
+uint8_t serialSearchChr(char ch);
+uint8_t serialReadAll(char * buf);
+char* serialGetBuffer();
 long serialParseInt();
 float serialParseFloat();
 void serialClearBuffer();
