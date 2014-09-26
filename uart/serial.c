@@ -60,12 +60,12 @@ uint8_t serialAvailable()
     return _buffer_length;
 }
 
-void serialInit(uint8_t SPEED)
+void serialInit(uint16_t SPEED)
 {
     _buffer_length = 0;
 
 #if defined(__AVR_ATmega8__) || defined(__AVR_ATmega16__)
-    UBRRH = (unsigned char)SPEED << 8;
+    UBRRH = (unsigned char)(SPEED >> 8);
     UBRRL = (unsigned char)SPEED;
     UCSRA = (0 << U2X);
 	UCSRB = (0 << UDRIE) | (0 << TXCIE) | (1 << RXCIE) | (1 << RXEN) | (1 << TXEN);
@@ -73,7 +73,7 @@ void serialInit(uint8_t SPEED)
 #endif
 
 #if defined(__AVR_ATmega88P__) || defined(__AVR_ATmega48__) || defined(__AVR_ATmega168__)
-    UBRR0H = (unsigned char)SPEED << 8;
+    UBRR0H = (unsigned char)(SPEED >> 8);
     UBRR0L = (unsigned char)SPEED;
     UCSR0A = (0 << U2X0);
 	UCSR0B = (0 << UDRIE0) | (0 << TXCIE0) | (1 << RXCIE0) | (1 << RXEN0) | (1 << TXEN0);

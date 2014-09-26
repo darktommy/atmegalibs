@@ -42,7 +42,7 @@ volatile uint8_t _buffer_length;
 volatile uint8_t lastChar;
 
 //initialization
-void serialInit(uint8_t ubrr); // default 8N1
+void serialInit(uint8_t ubrr); // 8N1
 void serialEnd();
 
 uint8_t serialAvailable();
